@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34f84fdbb94f74b4ab92adb3aef6074f, type: 3}
+  m_Name: VfxDatabase
+  m_EditorClassIdentifier: 
+  effects:
+  - Id: DEFAULT_IMPACT
+    Asset: {fileID: 8926484042661614526, guid: 79a2257c4e49aef419ff9ec5824a4079, type: 3}
+  - Id: DEATH_BURST
+    Asset: {fileID: 8926484042661614526, guid: 79a2257c4e49aef419ff9ec5824a4079, type: 3}
+  projectilePrefabs: []
