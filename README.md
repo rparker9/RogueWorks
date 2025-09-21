@@ -2,8 +2,6 @@
 
 # RogueWorks – Project Index (Latest Snapshot)
 
-*Source: `Scripts (2).zip`. Treat this as the current truth until superseded.*
-
 ## 0) Key Entry Points & Runtime Flow
 
 * **Unity/Runtime/SceneBootstrap.cs** → Builds services, wires databases, constructs world, spawns views.
