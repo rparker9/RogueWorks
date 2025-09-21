@@ -20,7 +20,7 @@ namespace RogueWorks.Unity.Animation.Sinks
         [SerializeField] private float revealDelay = 0.08f;
 
         /// <summary>
-        /// Append a line and optionally animate it in.
+        /// This function writes a new line of text to the log service.
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>

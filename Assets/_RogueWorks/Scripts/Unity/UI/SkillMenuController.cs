@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using RogueWorks.Core.Primitives;
 using RogueWorks.Core.Skills;
-using RogueWorks.Unity.Runtime;
+using RogueWorks.Unity.Runtime.Input;
 
 namespace RogueWorks.Unity.UI
 {

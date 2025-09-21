@@ -1,10 +1,15 @@
 using UnityEngine;
+
+namespace RogueWorks
+{
+    /*
+using UnityEngine;
 using UnityEngine.InputSystem;
 using RogueWorks.Core.Actions;
 using RogueWorks.Core.Controllers;
 using RogueWorks.Core.Primitives;
 
-namespace RogueWorks.Unity.Runtime
+namespace RogueWorks.Unity.Runtime.Input
 {
     #region Small Structs
     // ==========================
@@ -294,7 +299,6 @@ namespace RogueWorks.Unity.Runtime
                 Debug.LogWarning("[PlayerInputAdapter] Gameplay action 'SkillMenu' not found. Menu will not open.");
             }
 
-
             // ----- UI actions (same physical controls as Move, but in UI map) -----
             _uiNavigate = _uiMap.FindAction(uiNavigateActionName, false);
             _uiConfirm = _uiMap.FindAction(uiConfirmActionName, false);
@@ -347,10 +351,9 @@ namespace RogueWorks.Unity.Runtime
                     _skillMenu.started -= _onMenuStart;
                     _skillMenu.performed -= _onMenuStart;
                 }
-                if (_onMenuEnd != null) 
+                if (_onMenuEnd != null)
                     _skillMenu.canceled -= _onMenuEnd;
             }
-
 
             // UI
             if (_uiNavigate != null && _onNav != null) _uiNavigate.performed -= _onNav;
@@ -500,7 +503,7 @@ namespace RogueWorks.Unity.Runtime
 
         private void OnSkillMenuStart(InputAction.CallbackContext ctx)
         {
-            if (!skills.holdOpensMenu || _skillMenuOpen) 
+            if (!skills.holdOpensMenu || _skillMenuOpen)
                 return;
             _skillMenuOpen = true;
 
@@ -509,7 +512,7 @@ namespace RogueWorks.Unity.Runtime
             // Leave _skillMenu enabled so we get the 'canceled' when user releases.
 
             // Turn UI map on for navigation/confirm/cancel.
-            if (!_uiMap.enabled) 
+            if (!_uiMap.enabled)
                 _uiMap.Enable();
 
             // Clear any queued gameplay so nothing fires after close.
@@ -730,4 +733,6 @@ namespace RogueWorks.Unity.Runtime
             return new GridPos(ix, iy);
         }
     }
+}
+*/
 }

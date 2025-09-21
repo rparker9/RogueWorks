@@ -12,6 +12,7 @@ using RogueWorks.Unity.Animation.Sinks;
 using RogueWorks.Unity.Data;
 using RogueWorks.Unity.Presentation;
 using RogueWorks.Unity.UI;
+using RogueWorks.Unity.Runtime.Input;
 
 namespace RogueWorks.Unity.Runtime
 {
