@@ -17,4 +17,5 @@ MonoBehaviour:
     Asset: {fileID: 8926484042661614526, guid: 79a2257c4e49aef419ff9ec5824a4079, type: 3}
   - Id: DEATH_BURST
     Asset: {fileID: 8926484042661614526, guid: 79a2257c4e49aef419ff9ec5824a4079, type: 3}
-  projectilePrefabs: []
+  projectilePrefabs:
+  - {fileID: 3032786095283022078, guid: 69b0e68e49a4c3943a1fac9c98ecb5b6, type: 3}

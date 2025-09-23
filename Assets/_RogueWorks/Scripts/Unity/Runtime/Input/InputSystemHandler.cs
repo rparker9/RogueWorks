@@ -1,4 +1,5 @@
 using RogueWorks.Unity.Data;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -21,6 +22,9 @@ namespace RogueWorks.Unity.Runtime.Input
         private bool _moveHeldNow;
         private Vector2 _moveVector;
         private bool _turnHeld;
+
+        // Blocking check
+        private Func<bool> _isBlocked = () => false;
 
         // Cached delegates for reliable unsubscribe
         private System.Action<InputAction.CallbackContext> _onMovePerformed;
@@ -87,6 +91,9 @@ namespace RogueWorks.Unity.Runtime.Input
         {
             if (!_gameplayMap.enabled) _gameplayMap.Enable();
             if (_uiMap.enabled) _uiMap.Disable();
+
+            // IMPORTANT: Re-enable gameplay actions that were disabled while in the Skill UI.
+            SetGameplayActionsEnabled(true);
         }
 
         public void EnableUI()
@@ -102,6 +109,14 @@ namespace RogueWorks.Unity.Runtime.Input
             if (_turn != null) { if (enable) _turn.Enable(); else _turn.Disable(); }
             if (_quickSkill != null) { if (enable) _quickSkill.Enable(); else _quickSkill.Disable(); }
             // Note: _skillMenu stays enabled to receive canceled events
+        }
+
+        /// <summary>
+        /// Injects a predicate that returns true when gameplay input should be suppressed (e.g., blocking animation playing).
+        /// </summary>
+        public void SetBlockingCheck(Func<bool> isBlocked)
+        {
+            _isBlocked = isBlocked ?? (() => false);
         }
 
         private void BindCallbacks()

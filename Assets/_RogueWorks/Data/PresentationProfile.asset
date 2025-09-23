@@ -28,6 +28,6 @@ MonoBehaviour:
   attackAnimFallbackDelay: 0.06
   hitAnimFallbackDelay: 0.05
   deathAnimFallbackDelay: 0.12
-  projectileTravelTime: 0
-  beamTravelTime: 0
+  projectileTravelTime: 5
+  beamTravelTime: 5
   rules: []

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using RogueWorks.Core.Primitives;
 using RogueWorks.Core.Skills;
 using RogueWorks.Unity.Runtime.Input;
@@ -7,29 +8,31 @@ using RogueWorks.Unity.Runtime.Input;
 namespace RogueWorks.Unity.UI
 {
     /// <summary>
-    /// Skill grid menu driven by the Actor's runtime skills only.
-    /// - Data source is provided via SetRuntimeSkills(IReadOnlyList&lt;Skill&gt;).
-    /// - Confirm emits the string skill id via PlayerInputAdapter.CommitSelectedSkill.
+    /// Scrollable vertical list of skills with highlight + confirm.
+    /// - Data source: SetRuntimeSkills(IReadOnlyList<Skill>).
+    /// - Navigation: up/down via SkillMenuNavigated(Vector2).
+    /// - Confirm: emits selected skill id via PlayerInputAdapter.CommitSelectedSkill.
     /// </summary>
-    public class SkillMenuController : MonoBehaviour
+    public sealed class SkillMenuController : MonoBehaviour
     {
         [Header("Wiring")]
         [SerializeField] private PlayerInputAdapter inputAdapter;   // assign in scene
-        [SerializeField] private CanvasGroup canvasGroup;           // root of the menu
-        [SerializeField] private RectTransform gridRoot;            // parent for item views
-        [SerializeField] private SkillItemView itemPrefab;          // tile prefab
+        [SerializeField] private CanvasGroup canvasGroup;           // root visibility
+        [SerializeField] private ScrollRect scrollRect;             // ScrollRect on ScrollView
+        [SerializeField] private RectTransform listContent;         // "Content" under Viewport
+        [SerializeField] private SkillItemView itemPrefab;          // row prefab
 
         [Header("Navigation")]
-        [Tooltip("Columns in the grid. Rows will be computed.")]
-        [SerializeField] private int columns = 4;
-
         [Tooltip("Seconds between repeats when holding stick/keys to navigate.")]
         [SerializeField] private float navRepeatInterval = 0.18f;
 
-        [Tooltip("Deadzone for navigation vector.")]
+        [Tooltip("Deadzone for navigation vector magnitude.")]
         [SerializeField] private float navDeadZone = 0.35f;
 
-        // Runtime rows
+        [Tooltip("Wrap selection at ends.")]
+        [SerializeField] private bool wrapSelection = true;
+
+        // Internal state
         private readonly List<Skill> _skills = new();
         private readonly List<SkillItemView> _items = new();
 
@@ -70,24 +73,26 @@ namespace RogueWorks.Unity.UI
                 _navCooldown = Mathf.Max(0f, _navCooldown - Time.unscaledDeltaTime);
         }
 
-        // ==========================================================
+        // =====================================================================
         // Public API
-        // ==========================================================
+        // =====================================================================
 
         /// <summary>
-        /// Populate menu with the actor's runtime skills.
+        /// Rebuilds the list from the actor's runtime skills.
         /// </summary>
         public void SetRuntimeSkills(IReadOnlyList<Skill> coreSkills)
         {
             _skills.Clear();
-            if (coreSkills != null)
-                _skills.AddRange(coreSkills);
+            if (coreSkills != null) _skills.AddRange(coreSkills);
 
             RebuildItems();
             _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _skills.Count - 1));
-            UpdateSelectionVisuals();
+            UpdateSelectionVisuals(scrollToSelection: true);
         }
 
+        /// <summary>
+        /// Clears current list and selection.
+        /// </summary>
         public void ClearRuntimeSkills()
         {
             _skills.Clear();
@@ -95,24 +100,23 @@ namespace RogueWorks.Unity.UI
             _selectedIndex = 0;
         }
 
-        // ==========================================================
-        // Input events
-        // ==========================================================
+        // =====================================================================
+        // Input events from PlayerInputAdapter
+        // =====================================================================
 
         private void OnMenuOpened()
         {
             if (_skills.Count == 0)
             {
-                Debug.LogWarning("[SkillMenuController] Open requested but no runtime skills are set. Call SetRuntimeSkills(actor.Skills) before opening.");
+                Debug.LogWarning("[SkillMenuController] Open requested with no skills. Call SetRuntimeSkills(...) first.");
                 return;
             }
             _open = true;
             SetVisible(true);
             _navCooldown = 0f;
             _selectedIndex = Mathf.Clamp(_selectedIndex, 0, _skills.Count - 1);
-            UpdateSelectionVisuals();
+            UpdateSelectionVisuals(scrollToSelection: true);
         }
-
 
         private void OnMenuClosed()
         {
@@ -123,19 +127,25 @@ namespace RogueWorks.Unity.UI
         private void OnMenuNavigated(Vector2 v)
         {
             if (!_open || _skills.Count == 0) return;
-
             if (_navCooldown > 0f) return;
-            if (Mathf.Abs(v.x) < navDeadZone && Mathf.Abs(v.y) < navDeadZone) return;
 
-            int step = 0;
-            if (Mathf.Abs(v.x) > Mathf.Abs(v.y))
+            // Use vertical intent primarily. If horizontal input is larger, map it to vertical steps as well.
+            float absX = Mathf.Abs(v.x);
+            float absY = Mathf.Abs(v.y);
+            float mag = Mathf.Max(absX, absY);
+
+            if (mag < navDeadZone) return;
+
+            int step;
+            if (absY >= absX)
             {
-                step = v.x > 0 ? +1 : -1;
+                // Up is negative step (visually up), down is positive step.
+                step = (v.y > 0f) ? -1 : +1;
             }
             else
             {
-                int rowStep = v.y > 0 ? -1 : +1; // up visually reduces row
-                step = rowStep * columns;
+                // Allow left/right to move as up/down for controller D-pads.
+                step = (v.x < 0f) ? -1 : +1;
             }
 
             MoveSelection(step);
@@ -158,21 +168,39 @@ namespace RogueWorks.Unity.UI
             if (_open) OnMenuClosed();
         }
 
-        // ==========================================================
+        // =====================================================================
         // Helpers
-        // ==========================================================
+        // =====================================================================
 
+        /// <summary>
+        /// Adjusts selection index and updates visuals/scroll.
+        /// </summary>
         private void MoveSelection(int delta)
         {
             if (_skills.Count == 0) return;
 
-            int newIndex = Mathf.Clamp(_selectedIndex + delta, 0, _skills.Count - 1);
+            int newIndex = _selectedIndex + delta;
+
+            if (wrapSelection)
+            {
+                // Wrap around
+                if (newIndex < 0) newIndex = _skills.Count - 1;
+                else if (newIndex >= _skills.Count) newIndex = 0;
+            }
+            else
+            {
+                newIndex = Mathf.Clamp(newIndex, 0, _skills.Count - 1);
+            }
+
             if (newIndex == _selectedIndex) return;
 
             _selectedIndex = newIndex;
-            UpdateSelectionVisuals();
+            UpdateSelectionVisuals(scrollToSelection: true);
         }
 
+        /// <summary>
+        /// Recreates list items to match current _skills.
+        /// </summary>
         private void RebuildItems()
         {
             ClearItems();
@@ -180,33 +208,105 @@ namespace RogueWorks.Unity.UI
             for (int i = 0; i < _skills.Count; i++)
             {
                 var s = _skills[i];
-                var view = Instantiate(itemPrefab, gridRoot);
+                var view = Instantiate(itemPrefab, listContent);
 
-                view.Bind(s?.DisplayName ?? s?.Id ?? "—", null); // text only; icons can be wired later
-                int idx = i;
+                // Bind text/icon (icons optional)
+                view.Bind(s?.DisplayName ?? s?.Id ?? "—", null);
+
+                int idx = i; // capture for lambda
                 view.onClick = () =>
                 {
                     _selectedIndex = idx;
-                    UpdateSelectionVisuals();
+                    UpdateSelectionVisuals(scrollToSelection: true);
                     OnMenuConfirmed();
                 };
 
                 _items.Add(view);
             }
+
+            // Reset ScrollRect position to top when rebuilding
+            if (scrollRect) scrollRect.normalizedPosition = new Vector2(scrollRect.normalizedPosition.x, 1f);
         }
 
+        /// <summary>
+        /// Destroys all current list rows.
+        /// </summary>
         private void ClearItems()
         {
-            foreach (Transform child in gridRoot) Destroy(child.gameObject);
+            if (!listContent) return;
+            for (int i = listContent.childCount - 1; i >= 0; i--)
+                Destroy(listContent.GetChild(i).gameObject);
             _items.Clear();
         }
 
-        private void UpdateSelectionVisuals()
+        /// <summary>
+        /// Applies selected highlight state and optionally scrolls selection into view.
+        /// </summary>
+        private void UpdateSelectionVisuals(bool scrollToSelection)
         {
             for (int i = 0; i < _items.Count; i++)
                 _items[i].SetSelected(i == _selectedIndex);
+
+            if (scrollToSelection)
+                ScrollToIndex(_selectedIndex);
         }
 
+        /// <summary>
+        /// Scrolls the ScrollRect so that the selected row is fully visible.
+        /// Assumes vertical scrolling with content pivot at top (0.5, 1).
+        /// </summary>
+        private void ScrollToIndex(int index)
+        {
+            if (!scrollRect || !listContent || _items.Count == 0) return;
+
+            var viewport = scrollRect.viewport ? scrollRect.viewport : scrollRect.GetComponent<RectTransform>();
+            if (!viewport) return;
+
+            // Compute item position in content space.
+            var itemRt = _items[index].GetComponent<RectTransform>();
+            if (!itemRt) return;
+
+            // Convert bounds to content local Y.
+            float contentHeight = listContent.rect.height;
+            float viewportHeight = viewport.rect.height;
+
+            // Top of item relative to content's top (assuming pivot.y = 1 on content)
+            float itemTopY = Mathf.Abs(itemRt.anchoredPosition.y);
+            float itemBottomY = itemTopY + itemRt.rect.height;
+
+            // Current scroll offset (0 = top, 1 = bottom)
+            float currentNormalized = scrollRect.verticalNormalizedPosition;
+
+            // Visible window in content space (top to bottom)
+            float viewTop = (1f - currentNormalized) * Mathf.Max(0f, contentHeight - viewportHeight);
+            float viewBottom = viewTop + viewportHeight;
+
+            bool above = itemTopY < viewTop;
+            bool below = itemBottomY > viewBottom;
+
+            if (!(above || below)) return; // already fully visible
+
+            float targetTop;
+            if (above)
+            {
+                // Bring item top to view top
+                targetTop = itemTopY;
+            }
+            else
+            {
+                // Bring item bottom to view bottom
+                targetTop = itemBottomY - viewportHeight;
+            }
+
+            float maxScrollRange = Mathf.Max(0f, contentHeight - viewportHeight);
+            float newNorm = (maxScrollRange <= 0f) ? 1f : 1f - Mathf.Clamp01(targetTop / maxScrollRange);
+
+            scrollRect.verticalNormalizedPosition = newNorm;
+        }
+
+        /// <summary>
+        /// Sets menu visibility via CanvasGroup.
+        /// </summary>
         private void SetVisible(bool visible, bool instant = false)
         {
             if (!canvasGroup) return;

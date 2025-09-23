@@ -20,4 +20,5 @@ MonoBehaviour:
   startingSkills:
   - {fileID: 11400000, guid: 33f94d340ccff184b8e0ca21c76c2296, type: 2}
   - {fileID: 11400000, guid: 19aa8629fa568d14ea1a0509f59084b8, type: 2}
+  - {fileID: 11400000, guid: d64039893ba9602428950be89820f93c, type: 2}
   prefabOverride: {fileID: 0}

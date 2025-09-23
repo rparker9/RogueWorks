@@ -54,6 +54,8 @@ namespace RogueWorks.Unity.Runtime.Input
             }
 
             InitializeControllers();
+
+            _inputHandler.SetBlockingCheck(() => runtime != null && runtime.IsBlockingView);
         }
 
         private void OnEnable()
@@ -68,10 +70,33 @@ namespace RogueWorks.Unity.Runtime.Input
             _inputHandler?.Cleanup();
         }
 
+        /// <summary>
+        /// Unity Update loop: tick repeat timers, update skill gating,
+        /// and continuously feed the current input vector so continuous repeat
+        /// works even when the stick value doesn't change.
+        /// </summary>
         private void Update()
         {
+            // 1) Advance movement repeat timers
             _movementController?.UpdateTiming(Time.deltaTime);
+
+            // 2) Keep skills in sync (face-lock / pending-skill release, etc.)
             _skillController?.Update(runtime, _movementController?.LastFacing ?? GridPos.Right);
+
+            // 3) CRITICAL: Continuously pump current input so MovementController
+            //    can keep queuing the held direction across cooldown boundaries.
+            //    Without this, repeat only happens when InputSystem fires a 'performed' (value change).
+            if (_inputHandler != null && _movementController != null && _skillController != null)
+            {
+                bool isSuppressed = _skillController.IsSuppressingContinuous;
+                bool isBlocked = runtime?.IsBlockingView ?? false;
+
+                // If the Turn modifier is held, we’re rotating-in-place; otherwise we’re moving.
+                if (_inputHandler.IsTurnHeld)
+                    _movementController.TryRotate(_inputHandler.MoveVector, isBlocked, isSuppressed);
+                else
+                    _movementController.TryMove(_inputHandler.MoveVector, isBlocked, isSuppressed);
+            }
         }
 
         // --------------------------------------------------------------------------
